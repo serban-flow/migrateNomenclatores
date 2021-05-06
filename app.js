@@ -20,18 +20,18 @@ app.get('/', (req, response) => {
             sourceSystems = src;
 
             getNomenclators().then(nomenclators => {
-                //for (nomenclator of nomenclators) {
-                var nomenclator = nomenclators.find(x => {
-                    if (x.name == 'country') {
-                        return true
-                    } else return false
-                }
-                )
+                for (nomenclator of nomenclators) {
+                // var nomenclator = nomenclators.find(x => {
+                //     if (x.name == 'country') {
+                //         return true
+                //     } else return false
+                // }
+                //)
                 console.log(`Got nomenclator with id: ${nomenclator.id}, name: ${nomenclator.name}`);
                 getValuesForNomenclator(nomenclator.id, nomenclator.name)
 
 
-                //}
+                }
                 response.send('a mers')
             })
         })
@@ -45,40 +45,18 @@ app.listen(port, () => {
 })
 
 async function getValuesForNomenclator(nomenclatorID, name) {
-    values = await getNomenclatorValues(nomenclatorID)
+    var values = await getNomenclatorValues(nomenclatorID)
         var n = await printNomenclator(nomenclatorID, name, values)
-        console.log(`Nomenclator: ${n.name}`)
+        
         if (n.values.length > 0) {
-            console.log(`Nomenclator: ${n.name} with numberOfValues: ${n.values.length}`)
+            console.log(`Nomenclator cu valori: ${n.name} with numberOfValues: ${n.values.length}`)
+        } else {
+            console.log(`Nomenclator fara valori: ${n.name}`)
         }
         enumeration = createEnumeration(n)
-        console.log("_____________")
-        //console.log(enumeration)
-        console.log("_____________")
         postNewEnum(enumeration)
         return enumeration.description
     
-}
-
-function getNomenclators() {
-    return axios.get(`${nomenclatoareUrl}/nomenclators`)
-        .then(res => {
-            return res.data;
-        })
-        .catch(err => {
-            console.log('Error: ', err.message);
-        });
-}
-
-
-async function getNomenclatorValues(id) {
-    return axios.get(`${nomenclatoareUrl}/nomenclator/${id}/values`)
-        .then(res => {
-            return res.data;
-        })
-        .catch(err => {
-            console.log('Error: ', err.message);
-        });
 }
 
 async function printNomenclator(nomenclatorID, name, values) {
@@ -87,15 +65,15 @@ async function printNomenclator(nomenclatorID, name, values) {
     nomenclator.id = nomenclatorID
     nomenclator.values = []
     
-    for (value of values) {
-        if (value.sourceSystem == 'COPO') {
+    for (let value of values) {
+        if (value.sourceSystem === 'COPO') {
             if (value.nomenclatorId != null) {
-                var description = await getValuesForNomenclator(value.nomenclatorId, `${nomenclator.name}-${value.value}`)
+                const description = await getValuesForNomenclator(value.nomenclatorId, `${nomenclator.name}-${value.value}`)
                 value.description = description
-                nomenclator.values.push(value)
+                nomenclator.values = [...nomenclator.values, value]
             }
             else {
-                nomenclator.values.push(value)
+                nomenclator.values = [...nomenclator.values, value]
             }
         }
     }
@@ -166,16 +144,17 @@ function buildContentValues(oldValues) {
     for (oldValue of oldValues) {
         var newValue = {
             "type": "value",
-            "order": 1,
+            "order": oldValue.order,
 
             "code": oldValue.value
         }
+        newValue.contentMap = createConfigMap(oldValue.label, languages)
+        newValue.sourceSystems = createConfigMap(newValue.code, sourceSystems)
         if (oldValue.description != null) {
             newValue.childContentDescription = oldValue.description
             console.log(newValue)
+
         }
-        newValue.contentMap = createConfigMap(newValue.code, languages)
-        newValue.sourceSystems = createConfigMap(newValue.code, sourceSystems)
         newValues.push(newValue)
     }
     return newValues
@@ -187,4 +166,25 @@ function createConfigMap(value, array) {
         map[item.code] = `${value}-${item.code}`
     }
     return map
+}
+
+function getNomenclators() {
+    return axios.get(`${nomenclatoareUrl}/nomenclators`)
+        .then(res => {
+            return res.data;
+        })
+        .catch(err => {
+            console.log('Error: ', err.message);
+        });
+}
+
+
+async function getNomenclatorValues(id) {
+    return axios.get(`${nomenclatoareUrl}/nomenclator/${id}/values`)
+        .then(res => {
+            return res.data;
+        })
+        .catch(err => {
+            console.log('Error: ', err.message);
+        });
 }
